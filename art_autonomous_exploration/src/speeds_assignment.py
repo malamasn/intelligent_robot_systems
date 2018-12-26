@@ -4,6 +4,8 @@ import rospy
 import math
 import time
 
+import numpy as np
+
 from sensor_msgs.msg import Range
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
@@ -12,12 +14,12 @@ from sonar_data_aggregator import SonarDataAggregator
 from laser_data_aggregator import LaserDataAggregator
 from navigation import Navigation
 
-# Class for assigning the robot speeds 
+# Class for assigning the robot speeds
 class RobotController:
 
     # Constructor
     def __init__(self):
-        
+
       # Debugging purposes
       self.print_velocities = rospy.get_param('print_velocities')
 
@@ -43,7 +45,7 @@ class RobotController:
 
     # This function publishes the speeds and moves the robot
     def publishSpeeds(self, event):
-        
+
       # Produce speeds
       self.produceSpeeds()
 
@@ -52,7 +54,7 @@ class RobotController:
       twist.linear.x = self.linear_velocity
       twist.linear.y = 0
       twist.linear.z = 0
-      twist.angular.x = 0 
+      twist.angular.x = 0
       twist.angular.y = 0
       twist.angular.z = self.angular_velocity
 
@@ -66,19 +68,32 @@ class RobotController:
 
     # Produces speeds from the laser
     def produceSpeedsLaser(self):
-      scan = self.laser_aggregation.laser_scan
+      # scan = self.laser_aggregation.laser_scan
+      #save scan as a numpy.array and get the angles
+      scan = np.array(self.laser_aggregation.laser_scan)
+      angle_min = self.laser_aggregation.angle_min
+      angle_max = self.laser_aggregation.angle_max
+      #lidar's angles in an array, len(scan) == 667
+      #calculate all angles of lidar
+      angles = np.linspace(angle_min, angle_max, len(scan))
       linear  = 0
       angular = 0
       ############################### NOTE QUESTION ############################
       # Check what laser_scan contains and create linear and angular speeds
       # for obstacle avoidance
 
+      linear = -sum(np.cos(angles)/(scan**2))/len(scan)
+      angular = -sum(np.sin(angles)/(scan**2))/len(scan)
+      #angular range = [-0.3, 0.3] and linear range = [-0.15, 0.15]
+      linear = min(0.15, max(-0.15, linear))
+      angular = min(0.3, max(-0.3, angular))
+
       ##########################################################################
       return [linear, angular]
 
     # Combines the speeds into one output using a motor schema approach
     def produceSpeeds(self):
- 
+
       # Produce target if not existent
       if self.move_with_target == True and \
               self.navigation.target_exists == False:
@@ -98,11 +113,11 @@ class RobotController:
 
       # Get the submodule's speeds
       [l_laser, a_laser] = self.produceSpeedsLaser()
-      
+
       # You must fill these
       self.linear_velocity  = 0
       self.angular_velocity = 0
-      
+
       if self.move_with_target == True:
         [l_goal, a_goal] = self.navigation.velocitiesToNextSubtarget()
         ############################### NOTE QUESTION ############################
@@ -114,7 +129,10 @@ class RobotController:
         ############################### NOTE QUESTION ############################
         # Implement obstacle avoidance here using the laser speeds.
         # Hint: Subtract them from something constant
-        pass
+
+        self.linear_velocity = 0.15 + l_laser
+        self.angular_velocity = a_laser
+
         ##########################################################################
 
     # Assistive functions
