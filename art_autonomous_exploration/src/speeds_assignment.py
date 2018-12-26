@@ -124,6 +124,8 @@ class RobotController:
         # You must combine the two sets of speeds. You can use motor schema,
         # subsumption of whatever suits your better.
 
+        
+
         ##########################################################################
       else:
         ############################### NOTE QUESTION ############################

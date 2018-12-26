@@ -283,10 +283,8 @@ class Navigation:
             st_y = self.subtargets[self.next_subtarget][1]
 
             theta_r = np.arctan2(st_y - ry, st_x - rx)
-
             omega = (theta_r - theta)/np.pi
-            angular = omega * 0.3 # max angular = 0.3 m/s
-
+            angular = omega * 0.3 # max angular = 0.3 rad/s
             linear_r = 1 - np.abs(omega) #may need square
             linear = linear_r * 0.3 # max linear = 0.3 m/s
 
