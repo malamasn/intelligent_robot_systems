@@ -84,9 +84,6 @@ class RobotController:
 
       linear = -sum(np.cos(angles)/(scan**2))/len(scan)
       angular = -sum(np.sin(angles)/(scan**2))/len(scan)
-      #angular range = [-0.3, 0.3] and linear range = [-0.15, 0.15]
-      linear = min(0.15, max(-0.15, linear))
-      angular = min(0.3, max(-0.3, angular))
 
       ##########################################################################
       return [linear, angular]
@@ -118,13 +115,17 @@ class RobotController:
       self.linear_velocity  = 0
       self.angular_velocity = 0
 
+      # Obstacle avoidacnce constants
+      c_l = 0.15
+      c_a = 0.5
+
       if self.move_with_target == True:
         [l_goal, a_goal] = self.navigation.velocitiesToNextSubtarget()
         ############################### NOTE QUESTION ############################
         # You must combine the two sets of speeds. You can use motor schema,
         # subsumption of whatever suits your better.
-
-        
+        self.linear_velocity = l_goal + c_l * l_laser
+        self.angular_velocity = a_goal + c_a * a_laser
 
         ##########################################################################
       else:
@@ -132,9 +133,12 @@ class RobotController:
         # Implement obstacle avoidance here using the laser speeds.
         # Hint: Subtract them from something constant
 
-        self.linear_velocity = 0.15 + l_laser
-        self.angular_velocity = a_laser
+        self.linear_velocity = 0.3 + c_l * l_laser
+        self.angular_velocity = c_a * a_laser
 
+      # To make sure that velocities are in the desired range [-0.3, 0.3]
+      self.linear_velocity = min(0.3, max(-0.3, self.linear_velocity))
+      self.angular_velocity = min(0.3, max(-0.3, self.angular_velocity))
         ##########################################################################
 
     # Assistive functions
