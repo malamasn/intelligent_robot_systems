@@ -17,7 +17,7 @@ from path_planning import PathPlanning
 
 # Class for selecting the next best target
 class TargetSelection:
-    
+
     # Constructor
     def __init__(self, selection_method):
         self.goals_position = []
@@ -31,13 +31,13 @@ class TargetSelection:
         self.path_planning = PathPlanning()
 
 
-    def selectTarget(self, init_ogm, coverage, robot_pose, origin, \
+    def selectTarget(self, init_ogm, ros_ogm, coverage, robot_pose, origin, \
         resolution, force_random = False):
-        
+
         target = [-1, -1]
 
         ######################### NOTE: QUESTION  ##############################
-        # Implement a smart way to select the next target. You have the 
+        # Implement a smart way to select the next target. You have the
         # following tools: ogm_limits, Brushfire field, OGM skeleton,
         # topological nodes.
 
@@ -64,7 +64,7 @@ class TargetSelection:
         nodes = self.topo.topologicalNodes(ogm, skeleton, coverage, origin, \
                 resolution, brush, ogm_limits)
         Print.art_print("Topo nodes time: " + str(time.time() - tinit), Print.ORANGE)
-        
+
         # Visualization of topological nodes
         vis_nodes = []
         for n in nodes:
@@ -81,10 +81,51 @@ class TargetSelection:
             [0.3, 0.4, 0.7, 0.5], # Color RGBA
             0.1 # Scale
         )
-    
         # Random point
         if self.method == 'random' or force_random == True:
-          target = self.selectRandomTarget(ogm, coverage, brush, ogm_limits)
+            target = self.selectRandomTarget(ogm, coverage, brush, ogm_limits)
+        # Custom point
+        else:
+            self.path_planning.setMap(ros_ogm)
+            g_robot_pose = [robot_pose['x_px'] - int(origin['x'] / resolution),\
+                            robot_pose['y_px'] - int(origin['y'] / resolution)]
+
+            # Remove all covered nodes from the candidate list
+            nodes = np.array(nodes)
+            uncovered_idxs = np.array([coverage[n[0], n[1]] == 0 for n in nodes])
+            goals = nodes[uncovered_idxs]
+
+            # Initialize costs
+            w_dist = np.full(len(goals), np.inf)
+            # w_topo = np.full(len(goals), np.inf)
+            # w_turn = np.full(len(goals), np.inf)
+            # w_cove = np.full(len(goals), np.inf)
+
+            for idx, node in zip(range(len(goals)), goals):
+              subgoals = np.array(self.path_planning.createPath(g_robot_pose, node, resolution))
+
+              # If path is empty then skip to the next iteration
+              if subgoals.size == 0:
+                continue
+
+              # subgoals should contain the robot pose, so we don't need to diff it explicitly
+              subgoal_vectors = np.diff(subgoals, axis=0)
+              # ipdb.set_trace()
+
+              # # Distance cost
+              dists = [math.hypot(v[0], v[1]) for v in subgoal_vectors]
+              w_dist[idx] = np.sum(dists)
+              #
+              # # Turning cost
+              # w_turn[idx] = 0
+              # for v, w in zip(subgoal_vectors[:-1], subgoal_vectors[1:]):
+              #   c = np.dot(v,w) / np.norm(w)**2
+              #   w_turn[idx] += np.arccos(np.clip(c, -1, 1))
+              #
+
+            min_dist, min_idx = min(zip(w_dist, range(len(w_dist))))
+            target = nodes[min_idx]
+
         ########################################################################
 
         return target
@@ -92,7 +133,7 @@ class TargetSelection:
     def selectRandomTarget(self, ogm, coverage, brushogm, ogm_limits):
       # The next target in pixels
         tinit = time.time()
-        next_target = [0, 0] 
+        next_target = [0, 0]
         found = False
         while not found:
           x_rand = random.randint(0, ogm.shape[0] - 1)
@@ -104,4 +145,3 @@ class TargetSelection:
         Print.art_print("Select random target time: " + str(time.time() - tinit), \
             Print.ORANGE)
         return next_target
-
