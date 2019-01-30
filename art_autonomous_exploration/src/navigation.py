@@ -90,17 +90,24 @@ class Navigation:
                     self.robot_perception.origin['y'] / self.robot_perception.resolution\
                     ]
 
-        # Find the distance between the robot pose and the next subtarget
-        dist = math.hypot(\
-            rx - self.subtargets[self.next_subtarget][0], \
-            ry - self.subtargets[self.next_subtarget][1])
+        # Clear visited subtargets
+        self.subtargets = self.subtargets[self.next_subtarget:]
+        self.next_subtarget = 0
+
+        # Calculate distance between the robot pose and all remaining subtargets
+        dx = [rx - st[0] for st in self.subtargets]
+        dy = [ry - st[1] for st in self.subtargets]
+        dist = [math.hypot(v[0], v[1]) for v in zip(dx, dy)]
+
+        # Check if any target is in distance
+        min_dist, min_idx = min(zip(dist, range(len(dist))))
 
         ######################### NOTE: QUESTION  ##############################
         # What if a later subtarget or the end has been reached before the
         # next subtarget? Alter the code accordingly.
         # Check if distance is less than 7 px (14 cm)
-        if dist < 5:
-          self.next_subtarget += 1
+        if min_dist < 5:
+          self.next_subtarget = min_idx + 1
           self.counter_to_next_sub = self.count_limit
           # Check if the final subtarget has been approached
           if self.next_subtarget == len(self.subtargets):
@@ -108,7 +115,7 @@ class Navigation:
         ########################################################################
 
         # Publish the current target
-        if self.next_subtarget == len(self.subtargets):
+        if self.next_subtarget >= len(self.subtargets):
             return
 
         subtarget = [\
@@ -278,15 +285,29 @@ class Navigation:
         # compute the robot velocities for the vehicle to approach the target.
         # Hint: Trigonometry is required
 
+        l_max = 0.3
+        a_max = 0.3
+
         if self.subtargets and self.next_subtarget <= len(self.subtargets) - 1:
             st_x = self.subtargets[self.next_subtarget][0]
             st_y = self.subtargets[self.next_subtarget][1]
 
+            # Fix robot turning problem
             theta_r = np.arctan2(st_y - ry, st_x - rx)
-            omega = (theta_r - theta)/np.pi
-            angular = omega * 0.3 # max angular = 0.3 rad/s
-            linear_r = 1 - np.abs(omega) #may need square
-            linear = linear_r * 0.3 # max linear = 0.3 m/s
+            dtheta = (theta_r - theta)
+            if dtheta > np.pi:
+                omega = (dtheta - 2*np.pi)/np.pi
+            elif dtheta < -np.pi:
+                omega = (dtheta + 2*np.pi)/np.pi
+            else:
+                omega = (theta_r - theta)/np.pi
+            # Velocities in [-0.3, 0.3] range
+            linear = l_max * ((1 - np.abs(omega)) ** 4)
+            angular = a_max * np.sign(omega) * (abs(omega) ** (1/3))
+            # omega = (theta_r - theta)/np.pi
+            # angular = omega * 0.3 # max angular = 0.3 rad/s
+            # linear_r = 1 - np.abs(omega) #may need square
+            # linear = linear_r * 0.3 # max linear = 0.3 m/s
 
         ######################### NOTE: QUESTION  ##############################
 
