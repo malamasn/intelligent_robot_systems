@@ -30,6 +30,8 @@ class TargetSelection:
         self.topo = Topology()
         self.path_planning = PathPlanning()
 
+        # Initialize previous target
+        self.previous_target = [-1, -1]
 
     def selectTarget(self, init_ogm, ros_ogm, coverage, robot_pose, origin, \
         resolution, force_random = False):
@@ -149,8 +151,16 @@ class TargetSelection:
             min_dist, min_idx = min(zip(cost, range(len(cost))))
             target = nodes[min_idx]
 
-        ########################################################################
 
+            # Check if next target exists and if it exists, check if is close to previous
+            if target is None:
+                target = self.selectRandomTarget(ogm, coverage, brush, ogm_limits)
+            else:
+                target_dist = math.hypot(target[0] - self.previous_target[0], target[1] - self.previous_target[1])
+                if target_dist <= 5:
+                     target = self.selectRandomTarget(ogm, coverage, brush, ogm_limits)
+        ########################################################################
+        self.previous_target = target
         return target
 
     def selectRandomTarget(self, ogm, coverage, brushogm, ogm_limits):
