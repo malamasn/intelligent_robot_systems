@@ -208,6 +208,19 @@ class Navigation:
         # Reverse the path to start from the robot
         self.path = self.path[::-1]
 
+
+        # Smooth path
+        if len(self.path) > 3:
+            x = np.array(self.path)
+            y = np.copy(x)
+            a = 0.5
+            b = 0.2
+            e = np.sum(np.abs(a * (x[1:-1, :] - y[1:-1, :]) + b * (y[2:, :] - 2*y[1:-1, :] + y[:-2, :])))
+            while e > 1e-3:
+                y[1:-1, :] += a * (x[1:-1, :] - y[1:-1, :]) + b * (y[2:, :] - 2*y[1:-1, :] + y[:-2, :])
+                e = np.sum(np.abs(a * (x[1:-1, :] - y[1:-1, :]) + b * (y[2:, :] - 2*y[1:-1, :] + y[:-2, :])))
+            self.path = y.tolist()
+
         # Break the path to subgoals every 2 pixels (1m = 20px)
         step = 1
         n_subgoals = (int) (len(self.path)/step)
@@ -220,7 +233,8 @@ class Navigation:
 
         ######################### NOTE: QUESTION  ##############################
         # The path is produced by an A* algorithm. This means that it is
-        # optimal in length but 1) not smooth and 2) length optimality
+        # optimal in length but 1) not smooth (answer is just above)
+        # and 2) length optimality
         # may not be desired for coverage-based exploration
         ########################################################################
 
