@@ -85,7 +85,7 @@ class TargetSelection:
         if self.method == 'random' or force_random == True:
             target = self.selectRandomTarget(ogm, coverage, brush, ogm_limits)
         # Custom point
-        else:
+        elif self.method == 'cost_based':
             self.path_planning.setMap(ros_ogm)
             g_robot_pose = [robot_pose['x_px'] - int(origin['x'] / resolution),\
                             robot_pose['y_px'] - int(origin['y'] / resolution)]
