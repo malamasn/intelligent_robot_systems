@@ -8,7 +8,7 @@ import numpy as np
 from timeit import default_timer as timer
 from visualization_msgs.msg import Marker
 from visualization_msgs.msg import MarkerArray
-
+from scipy import signal
 from _cpp_functions import ffi, lib
 
 class Print:
@@ -39,12 +39,13 @@ class Cffi:
       for i in range(len(y)):
         yi[i] = ffi.cast("int *", y[i].ctypes.data)
 
-      br_c = lib.brushfireFromObstacles(xi, yi, len(x), len(x[0]), 
+      br_c = lib.brushfireFromObstacles(xi, yi, len(x), len(x[0]),
           ogml['min_x'], ogml['max_x'], ogml['min_y'], ogml['max_y'])
       # TODO: Must be faster!
-      for i in range(ogm.shape[0]):
-        for j in range(ogm.shape[1]):
-          brush[i][j] = yi[i][j]
+      # for i in range(ogm.shape[0]):
+      #   for j in range(ogm.shape[1]):
+      #     brush[i][j] = yi[i][j]
+      brush[:ogm.shape[0], :ogm.shape[1]] = np.array(y)
 
       return brush
 
@@ -65,10 +66,11 @@ class Cffi:
           ogml['min_x'], ogml['max_x'], ogml['min_y'], ogml['max_y'])
       Print.art_print("Pure skeletonization time: " + str(time.time() - itime), Print.BLUE)
       # TODO: Must be faster!
-      itime = time.time()
-      for i in range(skeleton.shape[0]):
-        for j in range(skeleton.shape[1]):
-          skeleton[i][j] = yi[i][j]
+      # itime = time.time()
+      # for i in range(skeleton.shape[0]):
+      #   for j in range(skeleton.shape[1]):
+      #     skeleton[i][j] = yi[i][j]
+      skeleton = np.array(y)
       Print.art_print("Skeletonization final copy: " + str(time.time() - itime), Print.BLUE)
       return skeleton
 
@@ -87,11 +89,12 @@ class Cffi:
 
       br_c = lib.prune(xi, yi, len(x), len(x[0]),
           ogml['min_x'], ogml['max_x'], ogml['min_y'], ogml['max_y'], iterations)
-      
+
       # TODO: Must be faster!
-      for i in range(skeleton.shape[0]):
-        for j in range(skeleton.shape[1]):
-          skeleton[i][j] = yi[i][j]
+      # for i in range(skeleton.shape[0]):
+      #   for j in range(skeleton.shape[1]):
+      #     skeleton[i][j] = yi[i][j]
+      skeleton = np.array(y)
       Print.art_print("Pruning time: " + str(time.time() - itime), Print.BLUE)
       return skeleton
 
@@ -100,16 +103,24 @@ class OgmOperations:
     @staticmethod
     def blurUnoccupiedOgm(ogm, ogml):
       local = np.copy(ogm)
-      for i in range(ogml['min_x'], ogml['max_x']):
-        for j in range(ogml['min_y'], ogml['max_y']):
-          if ogm[i][j] > 49: # Not free
-            c = 0
-            for ii in range(-1, 2):
-              for jj in range(-1, 2):
-                if ogm[i + ii][j + jj] <= 49:
-                  c += 1
-            if c >= 4:
-              local[i][j] = 0
+      # for i in range(ogml['min_x'], ogml['max_x']):
+      #   for j in range(ogml['min_y'], ogml['max_y']):
+      #     if ogm[i][j] > 49: # Not free
+      #       c = 0
+      #       for ii in range(-1, 2):
+      #         for jj in range(-1, 2):
+      #           if ogm[i + ii][j + jj] <= 49:
+      #             c += 1
+      #       if c >= 4:
+      #         local[i][j] = 0
+
+      free = np.ones((ogml['max_x'] - ogml['min_x'] + 3, ogml['max_y'] - ogml['min_y'] + 3))
+      free[np.where(ogm[ogml['min_x'] - 1: ogml['max_x'] + 2, ogml['min_y'] - 1: ogml['max_y'] + 2] > 49)] = 0
+
+      temp = np.ones((3, 3))
+      conv = signal.convolve2d(free, temp, 'valid')
+      filter = np.where((conv >= 4) & (free[1:-1, 1:-1] == 0))
+      local[ogml['min_x']: ogml['max_x'], ogml['min_y']: ogml['max_y']][filter] = 0
       return local
 
     @staticmethod
@@ -118,56 +129,73 @@ class OgmOperations:
       min_y = origin['y'] / resolution
       max_x = origin['x'] / resolution
       max_y = origin['y'] / resolution
-      
+
       x = ogm.shape[0]
       y = ogm.shape[1]
 
       # Search by x min
-      ok = False
-      for i in range(0, x, 20):
-        for j in range(0, y):
-          if ogm[i][j] != 51:
-            min_x = i - 20
-            ok = True
-            break
-        if ok:
-          break
+      # ok = False
+      # for i in range(0, x, 20):
+      #   for j in range(0, y):
+      #     if ogm[i][j] != 51:
+      #       min_x = i - 20
+      #       ok = True
+      #       break
+      #   if ok:
+          # break
+      idx = np.where(ogm[:x:20, :y] != 51)[:][0]
+      if len(idx) != 0:
+          min_x = idx[0] * 20 - 20
 
       # Search by x max
-      ok = False
-      for i in range(min_x + 20, x, 20):
-        for j in range(0, y):
-          if ogm[i][j] != 51:
-            ok = True
-            break
-        if not ok:
-          max_x = i
+      # ok = False
+      # for i in range(min_x + 20, x, 20):
+      #   for j in range(0, y):
+      #     if ogm[i][j] != 51:
+      #       ok = True
+      #       break
+      #   if not ok:
+      #     max_x = i
+      #     break
+      #   ok = False
+      idx = np.where(ogm[min_x + 20:x:20, :y] != 51)[:][0]
+      uniq = np.unique(idx) * 20 + min_x + 20
+      for x in range(min_x + 20, x, 20):
+        if x not in uniq:
+          max_x = x
           break
-        ok = False
 
       # Search by y min
-      ok = False
-      for j in range(0, y, 20):
-        for i in range(0, x):
-          if ogm[i][j] != 51:
-            min_y = j - 20
-            ok = True
-            break
-        if ok:
-          break
+      # ok = False
+      # for j in range(0, y, 20):
+      #   for i in range(0, x):
+      #     if ogm[i][j] != 51:
+      #       min_y = j - 20
+      #       ok = True
+      #       break
+      #   if ok:
+      #     break
+      idx = np.sort(np.where(ogm[:x, :y:20] != 51)[:][1])
+      if len(idx) != 0:
+        min_y = idx[0] * 20 - 20
 
       # Search by y max
-      ok = False
-      for j in range(min_y + 20, y, 20):
-        for i in range(0, x):
-          if ogm[i][j] != 51:
-            ok = True
-            break
-        if not ok:
-          max_y = j
+      # ok = False
+      # for j in range(min_y + 20, y, 20):
+      #   for i in range(0, x):
+      #     if ogm[i][j] != 51:
+      #       ok = True
+      #       break
+      #   if not ok:
+      #     max_y = j
+      #     break
+      #   ok = False
+      idx = np.where(ogm[:x, min_y + 20:y:20] != 51)[:][1]
+      uniq = np.unique(idx) * 20 + min_y + 20
+      for y in range(min_y + 20, x, 20):
+        if y not in uniq:
+          max_y = y
           break
-        ok = False
-
       RvizHandler.printMarker(\
             [
                 [
@@ -175,15 +203,15 @@ class OgmOperations:
                     min_y * resolution + origin['y']
                 ],
                 [
-                    max_x * resolution + origin['x'], 
+                    max_x * resolution + origin['x'],
                     min_y * resolution + origin['y']
                 ],
                 [
-                    max_x * resolution + origin['x'], 
+                    max_x * resolution + origin['x'],
                     max_y * resolution + origin['y']
                 ],
                 [
-                    min_x * resolution + origin['x'], 
+                    min_x * resolution + origin['x'],
                     max_y * resolution + origin['y']
                 ]
             ],\
@@ -197,9 +225,9 @@ class OgmOperations:
 
 
       return {
-          'min_x': min_x, 
-          'max_x': max_x, 
-          'min_y': min_y, 
+          'min_x': min_x,
+          'max_x': max_x,
+          'min_y': min_y,
           'max_y': max_y
           }
 
@@ -272,4 +300,3 @@ class RvizHandler:
 
 
         RvizHandler.markers_publisher.publish(markers)
-
