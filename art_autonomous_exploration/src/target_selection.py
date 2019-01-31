@@ -98,7 +98,7 @@ class TargetSelection:
             # Initialize costs
             w_dist = np.full(len(goals), np.inf)
             w_turn = np.full(len(goals), np.inf)
-            # w_topo = np.full(len(goals), np.inf)
+            w_topo = np.full(len(goals), np.inf)
             w_cove = np.full(len(goals), np.inf)
 
             for idx, node in zip(range(len(goals)), goals):
@@ -128,20 +128,24 @@ class TargetSelection:
               # Coverage cost
               w_cove[idx] = sum(coverage[x][y] for x, y in subgoal_vectors)
 
+              # Topology cost
+              w_topo[idx] = brush[node[0], node[1]]
 
             # Normalize weights
             w_dist = (w_dist - min(w_dist))/(max(w_dist) - min(w_dist))
             w_turn = (w_turn - min(w_turn))/(max(w_turn) - min(w_turn))
             w_cove = (w_cove - min(w_cove))/(max(w_cove) - min(w_cove))
+            w_topo = (w_topo - min(w_topo))/(max(w_topo) - min(w_topo))
 
 
             # Cost weights
+            c_topo = 4
             c_dist = 3
             c_cove = 2
             c_turn = 1
 
             # Calculate combination cost (final)
-            cost = c_dist * w_dist + c_turn * w_turn + c_cove * w_cove
+            cost = c_dist * w_dist + c_turn * w_turn + c_cove * w_cove + c_topo * w_topo
             min_dist, min_idx = min(zip(cost, range(len(cost))))
             target = nodes[min_idx]
 
