@@ -99,7 +99,7 @@ class TargetSelection:
             w_dist = np.full(len(goals), np.inf)
             w_turn = np.full(len(goals), np.inf)
             # w_topo = np.full(len(goals), np.inf)
-            # w_cove = np.full(len(goals), np.inf)
+            w_cove = np.full(len(goals), np.inf)
 
             for idx, node in zip(range(len(goals)), goals):
               subgoals = np.array(self.path_planning.createPath(g_robot_pose, node, resolution))
@@ -119,24 +119,29 @@ class TargetSelection:
               w_turn[idx] = 0
               theta = robot_pose['th']
 
-              for v, w in zip(subgoal_vectors[:-1], subgoal_vectors[1:]):
+              for v in subgoal_vectors[:-1]:
                   st_x, st_y = v
                   theta2 = math.atan2(st_y - g_robot_pose[1], st_x - g_robot_pose[0])
                   w_turn[idx] += abs(theta2 - theta)
                   theta = theta2
 
+              # Coverage cost
+              w_cove[idx] = sum(coverage[x][y] for x, y in subgoal_vectors)
+
 
             # Normalize weights
             w_dist = (w_dist - min(w_dist))/(max(w_dist) - min(w_dist))
             w_turn = (w_turn - min(w_turn))/(max(w_turn) - min(w_turn))
+            w_cove = (w_cove - min(w_cove))/(max(w_cove) - min(w_cove))
 
 
             # Cost weights
-            c_dist = 2
+            c_dist = 3
+            c_cove = 2
             c_turn = 1
 
             # Calculate combination cost (final)
-            cost = c_dist * w_dist + c_turn * w_turn
+            cost = c_dist * w_dist + c_turn * w_turn + c_cove * w_cove
             min_dist, min_idx = min(zip(cost, range(len(cost))))
             target = nodes[min_idx]
 
