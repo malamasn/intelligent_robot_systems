@@ -97,8 +97,8 @@ class TargetSelection:
 
             # Initialize costs
             w_dist = np.full(len(goals), np.inf)
+            w_turn = np.full(len(goals), np.inf)
             # w_topo = np.full(len(goals), np.inf)
-            # w_turn = np.full(len(goals), np.inf)
             # w_cove = np.full(len(goals), np.inf)
 
             for idx, node in zip(range(len(goals)), goals):
@@ -110,20 +110,28 @@ class TargetSelection:
 
               # subgoals should contain the robot pose, so we don't need to diff it explicitly
               subgoal_vectors = np.diff(subgoals, axis=0)
-              # ipdb.set_trace()
 
-              # # Distance cost
+              # Distance cost
               dists = [math.hypot(v[0], v[1]) for v in subgoal_vectors]
               w_dist[idx] = np.sum(dists)
-              #
-              # # Turning cost
-              # w_turn[idx] = 0
-              # for v, w in zip(subgoal_vectors[:-1], subgoal_vectors[1:]):
-              #   c = np.dot(v,w) / np.norm(w)**2
-              #   w_turn[idx] += np.arccos(np.clip(c, -1, 1))
-              #
 
-            min_dist, min_idx = min(zip(w_dist, range(len(w_dist))))
+              # Turning cost
+              w_turn[idx] = 0
+              theta = robot_pose['th']
+
+              for v, w in zip(subgoal_vectors[:-1], subgoal_vectors[1:]):
+                  st_x, st_y = v
+                  theta2 = math.atan2(st_y - g_robot_pose[1], st_x - g_robot_pose[0])
+                  w_turn[idx] += abs(theta2 - theta)
+                  theta = theta2
+
+            # Cost weights
+            c_dist = 0.5
+            c_turn = 0.5
+
+            # Calculate combination cost (final)
+            cost = c_dist * w_dist + c_turn * w_turn
+            min_dist, min_idx = min(zip(cost, range(len(cost))))
             target = nodes[min_idx]
 
         ########################################################################
