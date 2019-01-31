@@ -18,7 +18,7 @@ class RobotPerception:
 
     # Constructor
     def __init__(self):
-        
+
         # Flags for debugging and synchronization
         self.print_robot_pose = False
         self.have_map = False
@@ -45,7 +45,7 @@ class RobotPerception:
 
         # Holds the resolution of the occupancy grid map
         self.resolution = 0.05
-        
+
         # Origin is the translation between the (0,0) of the robot pose and the
         # (0,0) of the map
         self.origin = {}
@@ -79,7 +79,7 @@ class RobotPerception:
 
         # ROS Subscriber to the occupancy grid map
         ogm_topic = rospy.get_param('ogm_topic')
-        rospy.Subscriber(ogm_topic, OccupancyGrid, self.readMap) 
+        rospy.Subscriber(ogm_topic, OccupancyGrid, self.readMap)
 
         # Publisher of the robot trajectory
         robot_trajectory_topic = rospy.get_param('robot_trajectory_topic')
@@ -90,7 +90,7 @@ class RobotPerception:
         coverage_pub_topic = rospy.get_param('coverage_pub_topic')
         self.coverage_publisher = rospy.Publisher(coverage_pub_topic, \
             OccupancyGrid, queue_size = 10)
-        
+
         # Read Cell size
         self.cell_size = rospy.get_param('cell_size')
         self.cell_matrix = numpy.zeros((1,1))
@@ -177,11 +177,11 @@ class RobotPerception:
         self.ros_ogm = data
         # Reading the map pixels
         self.ogm_info = data.info
-        
+
         if self.have_map == False or \
                 self.ogm_info.width != self.prev_ogm_info.width or \
                 self.ogm_info.height != self.prev_ogm_info.height:
-            
+
             self.ogm = numpy.zeros((data.info.width, data.info.height), \
                     dtype = numpy.int)
             Print.art_print("Map & coverage expansion!", Print.GREEN)
@@ -234,10 +234,12 @@ class RobotPerception:
         yy = self.robot_pose['y_px'] + abs(self.origin['y'] / self.resolution)
         for i in range(-20, 20):
             for j in range(-20, 20):
-                if self.ogm[xx + i, yy + j] > 49 or self.ogm[xx + i, yy + j] == -1:
+                x = int(xx + i)
+                y = int(yy + j)
+                if self.ogm[x, y] > 49 or self.ogm[x, y] == -1:
                     continue
-                self.coverage[xx + i, yy + j] = 100
-                index = int((xx + i) + self.ogm_info.width * (yy + j))
+                self.coverage[xx, yy] = 100
+                index = int((xx) + self.ogm_info.width * (yy))
                 self.coverage_ogm.data[index] = 100
         self.coverage_publisher.publish(self.coverage_ogm)
 
@@ -270,5 +272,3 @@ class RobotPerception:
             p[0] - self.origin['x'],\
             p[1] - self.origin['y']\
             ]
-
-
