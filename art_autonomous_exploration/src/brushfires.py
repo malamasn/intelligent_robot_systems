@@ -17,13 +17,17 @@ class Brushfires:
     def obstaclesBrushfireCffi(self, ogm, ogm_limits):
         brush = numpy.full(ogm.shape, -1)
 
-        width = ogm.shape[0]
-        height = ogm.shape[1]
-
-        for i in range(ogm_limits['min_x'], ogm_limits['max_x'] - 1):
-            for j in range(ogm_limits['min_y'], ogm_limits['max_y'] - 1):
-                if ogm[i][j] > 49 or ogm[i][j] == -1:
-                    brush[i][j] = 0
+        # width = ogm.shape[0]
+        # height = ogm.shape[1]
+        brush[ogm_limits['min_x']:ogm_limits['max_x'] - 1, ogm_limits['min_y']:ogm_limits['max_y'] - 1]\
+            [
+                (ogm[ogm_limits['min_x']:ogm_limits['max_x'] - 1, ogm_limits['min_y']:ogm_limits['max_y'] - 1] > 49) |\
+                (ogm[ogm_limits['min_x']:ogm_limits['max_x'] - 1, ogm_limits['min_y']:ogm_limits['max_y'] - 1] == -1) \
+            ] = 0
+        # for i in range(ogm_limits['min_x'], ogm_limits['max_x'] - 1):
+        #     for j in range(ogm_limits['min_y'], ogm_limits['max_y'] - 1):
+        #         if ogm[i][j] > 49 or ogm[i][j] == -1:
+        #             brush[i][j] = 0
 
         brush = Cffi.brushfireFromObstacles(ogm, brush, ogm_limits)
         return brush
