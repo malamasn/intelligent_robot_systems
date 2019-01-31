@@ -125,9 +125,15 @@ class TargetSelection:
                   w_turn[idx] += abs(theta2 - theta)
                   theta = theta2
 
+
+            # Normalize weights
+            w_dist = (w_dist - min(w_dist))/(max(w_dist) - min(w_dist))
+            w_turn = (w_turn - min(w_turn))/(max(w_turn) - min(w_turn))
+
+
             # Cost weights
-            c_dist = 0.5
-            c_turn = 0.5
+            c_dist = 2
+            c_turn = 1
 
             # Calculate combination cost (final)
             cost = c_dist * w_dist + c_turn * w_turn
